@@ -1,0 +1,1044 @@
+# Django Real-time Chat Application - Complete Documentation
+
+## 📋 Table of Contents
+1. [Project Overview](#project-overview)
+2. [Features](#features)
+3. [Installation Guide](#installation-guide)
+4. [File Structure](#file-structure)
+5. [Database Models](#database-models)
+6. [Views Explanation](#views-explanation)
+7. [URLs Configuration](#urls-configuration)
+8. [Templates Guide](#templates-guide)
+9. [AJAX Implementation](#ajax-implementation)
+10. [API Endpoints](#api-endpoints)
+11. [Usage Guide](#usage-guide)
+12. [Troubleshooting](#troubleshooting)
+
+---
+
+## 🎯 Project Overview
+
+এটি একটি Django-based real-time chat application যেখানে users একে অপরের সাথে friend request পাঠাতে পারে এবং chat করতে পারে। Application টি AJAX ব্যবহার করে real-time messaging support করে।
+
+### Technology Stack
+- **Backend**: Django 4.x+
+- **Frontend**: HTML5, CSS3, Vanilla JavaScript
+- **Database**: SQLite (default) / PostgreSQL
+- **AJAX**: Fetch API
+- **Authentication**: Django built-in auth system
+
+---
+
+## ✨ Features
+
+### User Management
+- ✅ User Registration (Signup)
+- ✅ User Login/Logout
+- ✅ User Authentication & Authorization
+- ✅ User Profile Display
+
+### Friend System
+- ✅ View all registered users
+- ✅ Send friend requests
+- ✅ Accept/Reject friend requests
+- ✅ View pending requests
+- ✅ View friends list
+
+### Chat System
+- ✅ Real-time messaging (AJAX-based)
+- ✅ One-on-one chat with friends
+- ✅ Message history
+- ✅ Auto-refresh messages (every 2 seconds)
+- ✅ Read/Unread message status
+- ✅ Messenger-style UI
+
+---
+
+## 🚀 Installation Guide
+
+### Prerequisites
+- Python 3.8 or higher
+- pip (Python package manager)
+- Virtual environment (recommended)
+
+### Step 1: Create Virtual Environment
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+```
+
+### Step 2: Install Django
+```bash
+pip install django
+```
+
+### Step 3: Create Django Project
+```bash
+django-admin startproject messenger
+cd messenger
+```
+
+### Step 4: Create App
+```bash
+python manage.py startapp start_messiging
+```
+
+### Step 5: Add App to Settings
+`messenger/settings.py`:
+```python
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'start_messiging',  # Add this line
+]
+```
+
+### Step 6: Configure URLs
+`messenger/urls.py`:
+```python
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', include('start_messiging.urls')),
+]
+```
+
+### Step 7: Run Migrations
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+### Step 8: Create Superuser (Optional)
+```bash
+python manage.py createsuperuser
+```
+
+### Step 9: Run Server
+```bash
+python manage.py runserver
+```
+
+Visit: `http://127.0.0.1:8000/`
+
+---
+
+## 📁 File Structure
+
+```
+messenger/
+├── messenger/
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── start_messiging/
+│   ├── migrations/
+│   ├── templates/
+│   │   └── start_messiging/
+│   │       ├── home.html
+│   │       ├── login.html
+│   │       ├── signup.html
+│   │       ├── connect.html
+│   │       └── chat.html
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py
+│   ├── views.py
+│   ├── urls.py
+│   └── tests.py
+├── db.sqlite3
+└── manage.py
+```
+
+---
+
+## 🗄️ Database Models
+
+### 1. FriendRequest Model
+```python
+class FriendRequest(models.Model):
+    from_user = models.ForeignKey(User, related_name='sent_requests', on_delete=models.CASCADE)
+    to_user = models.ForeignKey(User, related_name='received_requests', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('from_user', 'to_user')
+```
+
+**Purpose**: Friend request পাঠানোর জন্য
+
+**Fields**:
+- `from_user`: যে user request পাঠিয়েছে
+- `to_user`: যে user request পেয়েছে
+- `created_at`: Request পাঠানোর সময়
+
+**Constraints**:
+- একই user কে একাধিকবার request পাঠানো যাবে না (unique_together)
+
+---
+
+### 2. Friendship Model
+```python
+class Friendship(models.Model):
+    user1 = models.ForeignKey(User, related_name='friendships_initiated', on_delete=models.CASCADE)
+    user2 = models.ForeignKey(User, related_name='friendships_received', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('user1', 'user2')
+```
+
+**Purpose**: Friend relationship store করার জন্য
+
+**Fields**:
+- `user1`: প্রথম user
+- `user2`: দ্বিতীয় user
+- `created_at`: Friendship তৈরি হওয়ার সময়
+
+**Constraints**:
+- দুইজন user এর মধ্যে একটিই friendship থাকতে পারবে
+
+---
+
+### 3. Message Model
+```python
+class Message(models.Model):
+    sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
+    receiver = models.ForeignKey(User, related_name='received_messages', on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['timestamp']
+```
+
+**Purpose**: Chat messages store করার জন্য
+
+**Fields**:
+- `sender`: যে message পাঠিয়েছে
+- `receiver`: যে message পেয়েছে
+- `content`: Message এর content
+- `timestamp`: Message পাঠানোর সময়
+- `is_read`: Message পড়া হয়েছে কিনা
+
+**Ordering**: timestamp অনুযায়ী ascending order
+
+---
+
+## 🔧 Views Explanation
+
+### 1. Home View
+```python
+def home(request):
+    return render(request, 'start_messiging/home.html')
+```
+
+**Purpose**: Landing page দেখানোর জন্য
+
+**Template**: `home.html`
+
+**Features**:
+- Logged in users দেখতে পারে তারা login করা
+- Logged out users signup/login option পায়
+
+---
+
+### 2. Login View
+```python
+def view_login(request):
+    if request.method == "POST":
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            login(request, user)
+            messages.success(request, 'Login successful!')
+            return redirect('home')
+        else:
+            messages.error(request, 'Invalid Username or Password')
+            return redirect('view_login')
+    
+    return render(request, 'start_messiging/login.html')
+```
+
+**Purpose**: User login functionality
+
+**Method**: GET & POST
+
+**POST Parameters**:
+- `username`: User এর username
+- `password`: User এর password
+
+**Process**:
+1. Username এবং password দিয়ে authenticate করে
+2. Valid হলে login করে এবং home page এ redirect করে
+3. Invalid হলে error message দেখায়
+
+---
+
+### 3. Signup View
+```python
+def signup(request):
+    if request.method == "POST":
+        username = request.POST.get('username')
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        password = request.POST.get('password1')
+        confirm_password = request.POST.get('password2')
+        
+        if password == confirm_password:
+            try:
+                if User.objects.filter(username=username).exists():
+                    messages.error(request, 'Username already exists')
+                    return redirect('signup')
+                
+                if User.objects.filter(email=email).exists():
+                    messages.error(request, 'Email already exists')
+                    return redirect('signup')
+                
+                user = User.objects.create_user(
+                    username=username, 
+                    email=email,
+                    password=password,
+                    first_name=name
+                )
+                user.save()
+                
+                messages.success(request, 'Account created successfully!')
+                return redirect('view_login')
+            
+            except Exception as e:
+                messages.error(request, f'Error creating account: {str(e)}')
+                return redirect('signup')
+        else:
+            messages.error(request, 'Passwords do not match')
+            return redirect('signup')
+    
+    return render(request, 'start_messiging/signup.html')
+```
+
+**Purpose**: নতুন user registration
+
+**POST Parameters**:
+- `username`: Unique username
+- `name`: User এর নাম
+- `email`: Email address
+- `password1`: Password
+- `password2`: Confirm password
+
+**Validation**:
+- Username unique হতে হবে
+- Email unique হতে হবে
+- Password match করতে হবে
+
+---
+
+### 4. Connect View
+```python
+@login_required(login_url='view_login')
+def view_connect(request):
+    # Get all users except current user
+    all_users = User.objects.exclude(id=request.user.id)
+    
+    # Get friendships
+    friendships = Friendship.objects.filter(
+        Q(user1=request.user) | Q(user2=request.user)
+    )
+    
+    # Get friend IDs
+    friend_ids = []
+    for friendship in friendships:
+        if friendship.user1 == request.user:
+            friend_ids.append(friendship.user2.id)
+        else:
+            friend_ids.append(friendship.user1.id)
+    
+    # Get requests
+    sent_requests = FriendRequest.objects.filter(from_user=request.user)
+    sent_request_ids = [req.to_user.id for req in sent_requests]
+    
+    received_requests = FriendRequest.objects.filter(to_user=request.user)
+    received_request_ids = [req.from_user.id for req in received_requests]
+    
+    # Available users
+    available_users = all_users.exclude(
+        id__in=friend_ids + sent_request_ids + received_request_ids
+    )
+    
+    context = {
+        'available_users': available_users,
+        'sent_requests': sent_requests,
+        'received_requests': received_requests,
+        'friends': User.objects.filter(id__in=friend_ids)
+    }
+    
+    return render(request, 'start_messiging/connect.html', context)
+```
+
+**Purpose**: All users, requests, এবং friends দেখানোর জন্য
+
+**Authentication**: Login required
+
+**Context Variables**:
+- `available_users`: যাদের সাথে এখনো friend নয় এবং request pending নেই
+- `sent_requests`: আপনার পাঠানো pending requests
+- `received_requests`: আপনার কাছে আসা requests
+- `friends`: আপনার friend list
+
+---
+
+### 5. Send Request View
+```python
+@login_required(login_url='view_login')
+def send_request(request, user_id):
+    to_user = get_object_or_404(User, id=user_id)
+    
+    if to_user != request.user:
+        FriendRequest.objects.get_or_create(
+            from_user=request.user,
+            to_user=to_user
+        )
+        messages.success(request, f'Friend request sent to {to_user.username}')
+    
+    return redirect('view_connect')
+```
+
+**Purpose**: Friend request পাঠানোর জন্য
+
+**Parameters**: `user_id` - যাকে request পাঠাতে হবে
+
+**Process**:
+1. User exist করে কিনা check করে
+2. নিজেকে request পাঠাতে দেয় না
+3. `get_or_create` দিয়ে duplicate request prevent করে
+
+---
+
+### 6. Accept Request View
+```python
+@login_required(login_url='view_login')
+def accept_request(request, request_id):
+    friend_request = get_object_or_404(FriendRequest, id=request_id, to_user=request.user)
+    
+    # Create friendship
+    Friendship.objects.create(
+        user1=friend_request.from_user,
+        user2=request.user
+    )
+    
+    # Delete the request
+    friend_request.delete()
+    
+    messages.success(request, f'You are now friends with {friend_request.from_user.username}')
+    return redirect('view_connect')
+```
+
+**Purpose**: Friend request accept করার জন্য
+
+**Parameters**: `request_id` - FriendRequest এর ID
+
+**Process**:
+1. Request টি current user এর কাছে আছে কিনা verify করে
+2. Friendship create করে
+3. Request delete করে
+
+---
+
+### 7. Reject Request View
+```python
+@login_required(login_url='view_login')
+def reject_request(request, request_id):
+    friend_request = get_object_or_404(FriendRequest, id=request_id, to_user=request.user)
+    from_user = friend_request.from_user
+    friend_request.delete()
+    
+    messages.info(request, f'Request from {from_user.username} rejected')
+    return redirect('view_connect')
+```
+
+**Purpose**: Friend request reject করার জন্য
+
+**Process**: Request টি simply delete করে দেয়
+
+---
+
+### 8. Chat View
+```python
+@login_required(login_url='view_login')
+def chat_view(request, friend_id):
+    friend = get_object_or_404(User, id=friend_id)
+    
+    # Check if they are friends
+    is_friend = Friendship.objects.filter(
+        Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
+    ).exists()
+    
+    if not is_friend:
+        messages.error(request, 'You can only chat with friends')
+        return redirect('view_connect')
+    
+    # Get all messages
+    messages_list = Message.objects.filter(
+        Q(sender=request.user, receiver=friend) | Q(sender=friend, receiver=request.user)
+    ).order_by('timestamp')
+    
+    # Mark as read
+    Message.objects.filter(sender=friend, receiver=request.user, is_read=False).update(is_read=True)
+    
+    # Send message
+    if request.method == 'POST':
+        content = request.POST.get('message')
+        if content:
+            Message.objects.create(
+                sender=request.user,
+                receiver=friend,
+                content=content
+            )
+            return redirect('chat_view', friend_id=friend_id)
+    
+    context = {
+        'friend': friend,
+        'messages': messages_list
+    }
+    
+    return render(request, 'start_messiging/chat.html', context)
+```
+
+**Purpose**: Chat interface এবং message পাঠানোর জন্য
+
+**Parameters**: `friend_id` - যার সাথে chat করতে হবে
+
+**Features**:
+- শুধু friends এর সাথে chat করা যায়
+- Message history দেখায়
+- নতুন message পাঠানো যায়
+- Unread messages automatically read mark করে
+
+---
+
+### 9. Get Messages API View
+```python
+@login_required(login_url='view_login')
+def get_messages(request, friend_id):
+    from django.http import JsonResponse
+    
+    friend = get_object_or_404(User, id=friend_id)
+    
+    # Check friendship
+    is_friend = Friendship.objects.filter(
+        Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
+    ).exists()
+    
+    if not is_friend:
+        return JsonResponse({'error': 'Not friends'}, status=403)
+    
+    # Get messages
+    messages_list = Message.objects.filter(
+        Q(sender=request.user, receiver=friend) | Q(sender=friend, receiver=request.user)
+    ).order_by('timestamp')
+    
+    # Mark as read
+    Message.objects.filter(sender=friend, receiver=request.user, is_read=False).update(is_read=True)
+    
+    # Convert to JSON
+    messages_data = []
+    for msg in messages_list:
+        messages_data.append({
+            'id': msg.id,
+            'content': msg.content,
+            'sender_id': msg.sender.id,
+            'timestamp': msg.timestamp.strftime('%I:%M %p')
+        })
+    
+    return JsonResponse({
+        'messages': messages_data,
+        'current_user_id': request.user.id
+    })
+```
+
+**Purpose**: AJAX এর মাধ্যমে messages fetch করার API
+
+**Response Format**:
+```json
+{
+  "messages": [
+    {
+      "id": 1,
+      "content": "Hello",
+      "sender_id": 2,
+      "timestamp": "02:30 PM"
+    }
+  ],
+  "current_user_id": 1
+}
+```
+
+---
+
+## 🔗 URLs Configuration
+
+```python
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.home, name='home'),
+    path('login/', views.view_login, name='view_login'),
+    path('signup/', views.signup, name='signup'),
+    path('logout/', views.view_logout, name='view_logout'),
+    path('connect/', views.view_connect, name='view_connect'),
+    path('send-request/<int:user_id>/', views.send_request, name='send_request'),
+    path('accept-request/<int:request_id>/', views.accept_request, name='accept_request'),
+    path('reject-request/<int:request_id>/', views.reject_request, name='reject_request'),
+    path('chat/<int:friend_id>/', views.chat_view, name='chat_view'),
+    path('api/messages/<int:friend_id>/', views.get_messages, name='get_messages'),
+]
+```
+
+### URL Patterns Explanation
+
+| URL | View | Purpose |
+|-----|------|---------|
+| `/` | home | Landing page |
+| `/login/` | view_login | Login page |
+| `/signup/` | signup | Registration page |
+| `/logout/` | view_logout | Logout functionality |
+| `/connect/` | view_connect | Find friends page |
+| `/send-request/<id>/` | send_request | Send friend request |
+| `/accept-request/<id>/` | accept_request | Accept request |
+| `/reject-request/<id>/` | reject_request | Reject request |
+| `/chat/<id>/` | chat_view | Chat interface |
+| `/api/messages/<id>/` | get_messages | AJAX API endpoint |
+
+---
+
+## 🎨 Templates Guide
+
+### 1. home.html
+**Purpose**: Landing page
+
+**Features**:
+- Dynamic content based on authentication status
+- Navbar with login/logout options
+- Hero section with CTA buttons
+- Feature cards
+- Message display
+
+**Key Sections**:
+```html
+<!-- Navbar -->
+<nav class="navbar">
+  {% if user.is_authenticated %}
+    <!-- Show username and logout -->
+  {% else %}
+    <!-- Show login and signup buttons -->
+  {% endif %}
+</nav>
+
+<!-- Hero Section -->
+<section class="hero">
+  {% if user.is_authenticated %}
+    <!-- Welcome back message -->
+  {% else %}
+    <!-- Welcome new user -->
+  {% endif %}
+</section>
+```
+
+---
+
+### 2. login.html
+**Purpose**: User login
+
+**Form Fields**:
+- Username
+- Password
+
+**Features**:
+- Error/Success message display
+- Link to signup page
+- Gradient design
+- Form validation
+
+---
+
+### 3. signup.html
+**Purpose**: User registration
+
+**Form Fields**:
+- Full Name
+- Username
+- Email
+- Password
+- Confirm Password
+
+**Features**:
+- Password matching validation
+- Username uniqueness check
+- Email validation
+- Link to login page
+
+---
+
+### 4. connect.html
+**Purpose**: Friend management
+
+**Sections**:
+1. **Friend Requests Received** - Accept/Reject করার জন্য
+2. **Your Friends** - Chat button সহ friend list
+3. **Pending Requests** - আপনার পাঠানো requests
+4. **Find New Friends** - নতুন users দের list
+
+**Card Structure**:
+```html
+<div class="user-card">
+  <div class="user-avatar">A</div>
+  <div class="user-name">Name</div>
+  <div class="user-username">@username</div>
+  <a href="#" class="btn">Action</a>
+</div>
+```
+
+---
+
+### 5. chat.html
+**Purpose**: Real-time chat interface
+
+**Sections**:
+1. **Chat Header** - Friend info এবং back button
+2. **Messages Area** - Message history
+3. **Input Area** - Message পাঠানোর form
+
+**Message Structure**:
+```html
+<div class="message sent">
+  <div>
+    <div class="message-bubble">Message text</div>
+    <div class="message-time">02:30 PM</div>
+  </div>
+</div>
+```
+
+---
+
+## ⚡ AJAX Implementation
+
+### Overview
+Chat system টি AJAX ব্যবহার করে real-time messaging support করে। Page reload না করেই messages fetch এবং send করা যায়।
+
+### Key JavaScript Functions
+
+#### 1. Load Messages
+```javascript
+function loadMessages() {
+    fetch('/api/messages/' + friendId + '/')
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            var messages = data.messages;
+            // Update DOM with new messages
+        })
+        .catch(function(error) {
+            console.error('Error:', error);
+        });
+}
+```
+
+**Purpose**: Background এ messages fetch করে
+
+**Process**:
+1. API endpoint থেকে JSON data fetch করে
+2. Existing message IDs check করে
+3. নতুন messages শুধু DOM এ add করে
+4. Auto scroll to bottom
+
+---
+
+#### 2. Send Message
+```javascript
+messageForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    var message = messageInput.value.trim();
+    if (!message) return;
+    
+    var csrftoken = getCookie('csrftoken');
+    var formData = new FormData();
+    formData.append('message', message);
+    
+    fetch('/chat/' + friendId + '/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        body: formData
+    })
+    .then(function(response) {
+        messageInput.value = '';
+        setTimeout(function() {
+            loadMessages();
+        }, 500);
+    });
+});
+```
+
+**Purpose**: নতুন message পাঠানোর জন্য
+
+**Process**:
+1. Form submit event prevent করে
+2. CSRF token সহ POST request করে
+3. Success হলে input field clear করে
+4. 500ms পর messages reload করে
+
+---
+
+#### 3. CSRF Token Handler
+```javascript
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+```
+
+**Purpose**: Django CSRF token extract করার জন্য
+
+---
+
+#### 4. Auto-Refresh
+```javascript
+setInterval(function() {
+    loadMessages();
+}, 2000);
+```
+
+**Purpose**: প্রতি 2 সেকেন্ডে automatic messages update
+
+**Benefits**:
+- Real-time experience
+- Input field interrupt হয় না
+- Minimal server load
+
+---
+
+## 🌐 API Endpoints
+
+### GET /api/messages/<friend_id>/
+
+**Description**: Get all messages between current user and friend
+
+**Authentication**: Required
+
+**Response**:
+```json
+{
+  "messages": [
+    {
+      "id": 1,
+      "content": "Hello!",
+      "sender_id": 2,
+      "timestamp": "02:30 PM"
+    },
+    {
+      "id": 2,
+      "content": "Hi there!",
+      "sender_id": 1,
+      "timestamp": "02:31 PM"
+    }
+  ],
+  "current_user_id": 1
+}
+```
+
+**Error Response**:
+```json
+{
+  "error": "Not friends"
+}
+```
+Status Code: 403
+
+---
+
+## 📖 Usage Guide
+
+### For New Users
+
+#### 1. Create Account
+1. Homepage এ যান
+2. "Sign Up" button এ click করুন
+3. সব information fill করুন:
+   - Full Name
+   - Username (unique হতে হবে)
+   - Email (unique হতে হবে)
+   - Password
+   - Confirm Password
+4. "Create Account" button এ click করুন
+5. Success message দেখলে login page এ redirect হবে
+
+#### 2. Login
+1. Username এবং Password দিয়ে login করুন
+2. Success হলে home page এ redirect হবে
+
+#### 3. Find Friends
+1. "Start Chatting" বা "View Contacts" button এ click করুন
+2. "Find New Friends" section এ সব available users দেখাবে
+3. "+ Add Friend" button এ click করে request পাঠান
+
+#### 4. Accept Requests
+1. Connect page এ "Friend Requests" section check করুন
+2. "✓ Accept" button এ click করে accept করুন
+3. "✗ Reject" button এ click করে reject করুন
+
+#### 5. Start Chatting
+1. "Your Friends" section এ যান
+2. যার সাথে chat করতে চান তার "💬 Chat Now" button এ click করুন
+3. Message type করে "➤" button এ click করুন বা Enter press করুন
+4. Messages automatically update হবে প্রতি 2 সেকেন্ডে
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues and Solutions
+
+#### 1. Messages Not Updating
+**Problem**: নতুন messages automatically আসছে না
+
+**Solutions**:
+- Browser console check করুন error আছে কিনা
+- Network tab check করুন API call হচ্ছে কিনা
+- AJAX interval সঠিকভাবে চলছে কিনা verify করুন
+
+```javascript
+// Console এ এই line দেখা যাওয়া উচিত প্রতি 2 সেকেন্ডে
+console.log('Checking for new messages...');
+```
+
+---
+
+#### 2. CSRF Token Error
+**Problem**: POST request এ 403 Forbidden error
+
+**Solution**:
+- `{% csrf_token %}` form এ আছে কিনা check করুন
+- `getCookie()` function সঠিকভাবে কাজ করছে কিনা verify করুন
+
+```python
+# settings.py তে verify করুন
+MIDDLEWARE = [
+    ...
+    'django.middleware.csrf.CsrfViewMiddleware',
+    ...
+]
+```
+
+---
+
+#### 3. Static Files Not Loading
+**Problem**: CSS/JS load হচ্ছে না
+
+**Solution**:
+```python
+# settings.py
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
+# Development এ
+python manage.py collectstatic
+```
+
+---
+
+#### 4. Database Migration Errors
+**Problem**: Models change করার পর error
+
+**Solution**:
+```bash
+# Delete existing migrations (except __init__.py)
+# Then run:
+python manage.py makemigrations
+python manage.py migrate
+
+# যদি এখনো issue থাকে:
+python manage.py migrate --run-syncdb
+```
+
+---
+
+#### 5. Friend Request Duplicate Error
+**Problem**: Same user কে multiple requests পাঠানো যাচ্ছে
+
+**Solution**: Model এ `unique_together` আছে কিনা check করুন
+```python
+class FriendRequest(models.Model):
+    # ...
+    class Meta:
+        unique_together = ('from_user', 'to_user')
+```
+
+---
+
+#### 6. Chat Page Not Accessible
+**Problem**: Chat করতে গেলে error আসছে
+
+**Checks**:
+1. দুইজন কি friend?
+2. `@login_required` decorator আছে কিনা?
+3. Friendship model সঠিকভাবে configured কিনা?
+
+---
+
+### Debug Mode
+
+Development এ debug করার জন্য:
+
+```python
+# settings.py
+DEBUG = True
+
+# Console এ detailed error দেখার জন্য
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+}
+
+
+### Security
+1. ✅ Always use `@login_required`
