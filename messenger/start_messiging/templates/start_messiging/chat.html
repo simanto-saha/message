@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with {{ friend.username }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            background: white;
+            color: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .user-info h2 {
+            font-size: 20px;
+            margin-bottom: 3px;
+        }
+        
+        .user-info p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 30px;
+            background: #ffffff;
+        }
+        
+        .messages-area::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .messages-area::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .messages-area::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+        
+        .message {
+            display: flex;
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .message > div {
+            display: inline-block;
+            max-width: 70%;
+        }
+        
+        .message.sent {
+            justify-content: flex-end;
+        }
+        
+        .message.received {
+            justify-content: flex-start;
+        }
+        
+        .message-bubble {
+            display: inline-block;
+            padding: 10px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.4;
+            font-size: 15px;
+        }
+        
+        .message.sent .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message.received .message-bubble {
+            background: #e4e6eb;
+            color: #050505;
+            border-bottom-left-radius: 5px;
+            box-shadow: none;
+        }
+        
+        .message-time {
+            font-size: 11px;
+            margin-top: 4px;
+            opacity: 0.6;
+            padding: 0 5px;
+        }
+        
+        .message.sent .message-time {
+            text-align: right;
+        }
+        
+        .no-messages {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .no-messages-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .message-input-area {
+            padding: 20px 30px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .input-form {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+        
+        .message-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .send-btn {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .send-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .chat-container {
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .message-bubble {
+                max-width: 80%;
+            }
+            
+            .chat-header {
+                padding: 15px 20px;
+            }
+            
+            .messages-area {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="chat-header-left">
+                <button class="back-btn" onclick="goBack()">←</button>
+                <div class="user-avatar">{{ friend.username.0|upper }}</div>
+                <div class="user-info">
+                    <h2>{{ friend.first_name|default:friend.username }}</h2>
+                    <p>@{{ friend.username }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="messages-area" id="messagesArea">
+            {% if messages %}
+                {% for msg in messages %}
+                <div class="message {% if msg.sender == user %}sent{% else %}received{% endif %}" data-id="{{ msg.id }}">
+                    <div>
+                        <div class="message-bubble">
+                            {{ msg.content }}
+                        </div>
+                        <div class="message-time">
+                            {{ msg.timestamp|date:"h:i A" }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-messages" id="noMessages">
+                    <div class="no-messages-icon">💬</div>
+                    <h3>No messages yet</h3>
+                    <p>Start the conversation by sending a message!</p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="message-input-area">
+            <form id="messageForm" class="input-form">
+                {% csrf_token %}
+                <input 
+                    type="text" 
+                    id="messageInput"
+                    name="message" 
+                    class="message-input" 
+                    placeholder="Type your message..." 
+                    required
+                    autocomplete="off"
+                >
+                <button type="submit" class="send-btn">➤</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        var friendId = parseInt("{{ friend.id }}");
+        var currentUserId = parseInt("{{ user.id }}");
+        var messagesArea = document.getElementById("messagesArea");
+        var messageForm = document.getElementById("messageForm");
+        var messageInput = document.getElementById("messageInput");
+        var lastMessageId = 0;
+        
+        function goBack() {
+            window.location.href = "{% url 'view_connect' %}";
+        }
+        
+        function scrollToBottom() {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+        
+        function getCookie(name) {
+            var cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        function loadMessages() {
+            fetch('/api/messages/' + friendId + '/')
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    var messages = data.messages;
+                    var currentUserId = data.current_user_id;
+                    
+                    if (messages.length === 0) {
+                        return;
+                    }
+                    
+                    var noMessagesDiv = document.getElementById("noMessages");
+                    if (noMessagesDiv) {
+                        noMessagesDiv.remove();
+                    }
+                    
+                    var existingIds = [];
+                    var existingMessages = messagesArea.querySelectorAll('.message[data-id]');
+                    for (var i = 0; i < existingMessages.length; i++) {
+                        existingIds.push(parseInt(existingMessages[i].getAttribute('data-id')));
+                    }
+                    
+                    messages.forEach(function(msg) {
+                        if (existingIds.indexOf(msg.id) === -1) {
+                            var messageWrapper = document.createElement('div');
+                            messageWrapper.className = 'message ' + (msg.sender_id === currentUserId ? 'sent' : 'received');
+                            messageWrapper.setAttribute('data-id', msg.id);
+                            
+                            var messageContent = document.createElement('div');
+                            
+                            var bubble = document.createElement('div');
+                            bubble.className = 'message-bubble';
+                            bubble.textContent = msg.content;
+                            
+                            var time = document.createElement('div');
+                            time.className = 'message-time';
+                            time.textContent = msg.timestamp;
+                            
+                            messageContent.appendChild(bubble);
+                            messageContent.appendChild(time);
+                            messageWrapper.appendChild(messageContent);
+                            
+                            messagesArea.appendChild(messageWrapper);
+                            
+                            if (msg.id > lastMessageId) {
+                                lastMessageId = msg.id;
+                            }
+                        }
+                    });
+                    
+                    scrollToBottom();
+                })
+                .catch(function(error) {
+                    console.error('Error loading messages:', error);
+                });
+        }
+        
+        messageForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            var message = messageInput.value.trim();
+            if (!message) return;
+            
+            var csrftoken = getCookie('csrftoken');
+            var formData = new FormData();
+            formData.append('message', message);
+            
+            fetch('/chat/' + friendId + '/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                },
+                body: formData
+            })
+            .then(function(response) {
+                messageInput.value = '';
+                setTimeout(function() {
+                    loadMessages();
+                }, 500);
+            })
+            .catch(function(error) {
+                console.error('Error sending message:', error);
+            });
+        });
+        
+        scrollToBottom();
+        
+        setInterval(function() {
+            loadMessages();
+        }, 2000);
+    </script>
+</body>
+</html>
